@@ -1,9 +1,15 @@
 import { StatusBar } from 'expo-status-bar';
-import { SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView, StyleSheet, Text, TouchableOpacity, View, FlatList, ActivityIndicator } from 'react-native';
 import Option from './components/Option';
 import { useEffect, useState } from 'react';
 import { quizData } from './questions';
 import Results from './components/Results';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+interface DataItem {
+  name: string;
+  score: any;
+}
 
 export default function App() {
 
@@ -12,6 +18,7 @@ export default function App() {
   const [score, setScore] = useState(0);
   const [selectedOption, setSelectedOption] = useState("");
   const [showResult, setShowResult] = useState(false);
+  const [showLeader, setShowLeader] = useState(false);
   const [checkIfSelected, setCheckIfSelected] = useState({
     option1: false,
     option2: false,
@@ -19,18 +26,32 @@ export default function App() {
     option4: false,
   })
   const [percentageComplete, setPercentageComplete] = useState(0)
+  const [questionComplete, setQuestionComplete] = useState(0)
+  const [users, setUsers] = useState("");
+  const [data, setData] = useState<DataItem[]>([]);
+
+  const shuffleQuiz = () => {
+    const shuffledQuestions = quizData.map(question => ({
+      ...question,
+      options: question.options.sort(() => Math.random() - 0.5)
+    }));
+    const shuffledQuiz = shuffledQuestions.sort(() => Math.random() - 0.5);
+    setQuestions(shuffledQuiz);
+  };
 
   useEffect(() => {
-    setQuestions(quizData)
+    shuffleQuiz()
+    setUsers("Anonymous_users")
   }, [])
   
   let currentQuestion = questions[currentQuestionIndex];
 
   useEffect(() => {
-    // let percentage = (((currentQuestionIndex + 1) / questions?.length) * 100);
-    let percentage = (currentQuestionIndex + 1) * 10
+    let percentage = (currentQuestionIndex + 1) * 5
+    let questionAnswer = (currentQuestionIndex + 1) * 1
 
     setPercentageComplete(percentage);
+    setQuestionComplete(questionAnswer);
   }, [currentQuestionIndex]);
 
 
@@ -44,6 +65,7 @@ export default function App() {
     if (currentQuestionIndex < questions?.length - 1) {
       setCurrentQuestionIndex((prevQuestion) => prevQuestion + 1);
     } else {
+      storeData(score);
       setShowResult(true);
     }
 
@@ -55,6 +77,18 @@ export default function App() {
     
     })
   }
+
+  const storeData = async (value: number) => {
+    try {
+      const object: DataItem = { name: users, score: value };
+      const newData = [...data, object];
+      setData(newData);
+      const leaderBoard = JSON.stringify(newData);
+      await AsyncStorage.setItem('leaderBoard', leaderBoard);
+    } catch (e) {
+      console.log('error ' + e)
+    }
+  };
 
   const checkOptionOne = () => {
     setCheckIfSelected({
@@ -98,7 +132,46 @@ export default function App() {
     setShowResult(false);
   }
 
-  if (showResult) return  <Results restart={restart} score={score} />
+  const leaderBoard = () => {
+    setScore(0);
+    setCurrentQuestionIndex(0);
+    setShowResult(false);
+    setShowLeader(true)
+  }
+
+  const back = () => {
+    setScore(0);
+    setCurrentQuestionIndex(0);
+    setShowLeader(false)
+  }
+
+
+  const renderLeaderboardItem = ({ item }: { item: DataItem }) => (
+    <View style={{ flexDirection: 'row', justifyContent: 'space-between', padding: 10 }}>
+      <Text>{item.name}</Text>
+      <Text>{item.score}</Text>
+    </View>
+  );
+
+  if (showResult) return  <Results restart={restart} score={score} leaderBoard={leaderBoard} />
+  if (showLeader) return (
+    <View style={styles.container}>
+      <SafeAreaView>
+        <Text style={{ fontSize: 20, fontWeight: 'bold', marginBottom: 10 }}>Leaderboard</Text>
+        <FlatList
+          data={data}
+          renderItem={renderLeaderboardItem}
+          keyExtractor={(item, i) => item.name + `_${i}`}
+        />
+        <View>
+          <TouchableOpacity onPress={back} activeOpacity={.8} style={styles.btn} >
+            <Text style={{color:"white", fontWeight: "600"}} >Back</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    </View>
+  )    
+
 
   return (
     <View style={styles.container}>
@@ -113,11 +186,11 @@ export default function App() {
           <View style={styles.progresswrapper} >
             <View style={[styles.progressBar, {width: `${percentageComplete}%`}]} ></View>
             <View style={styles.progresscount} >
-                <Text style={styles.percentage}>{percentageComplete}</Text>
+                <Text style={styles.percentage}>{questionComplete}</Text>
             </View>
           </View>
 
-         <Text style={{ fontWeight: "500", textAlign: "center" }}>
+         <Text style={{ fontWeight: "500", textAlign: "center", fontSize: 18 }}>
             {currentQuestion?.question}
          </Text>
         </View>
@@ -168,7 +241,7 @@ const styles = StyleSheet.create({
   progresswrapper: {
     width: 70,
     height: 70,
-    backgroundColor: "#ABD1C6",
+    backgroundColor: "#d6c7ff",
     borderRadius: 50,
     alignItems: "center",
     overflow: "hidden",
@@ -178,7 +251,7 @@ const styles = StyleSheet.create({
   },
   progressBar: {
     height: "100%",
-    backgroundColor: "#004643",
+    backgroundColor: "#3503c3",
     alignSelf: "flex-end",
   },
   progresscount: {
@@ -205,9 +278,14 @@ const styles = StyleSheet.create({
     width: "100%",
     height: 50,
     borderRadius: 16,
-    backgroundColor: "#004643",
+    backgroundColor: "#3503c3",
     justifyContent: "center",
     alignItems: "center",
     marginTop: 20,
-  }
+  },
+  containerLeader: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
 });

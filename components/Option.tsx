@@ -15,7 +15,7 @@ const Option = ({option, isSelected, checkIfSelected, setSelectedOption}:Props) 
     }
 
   return (
-    <TouchableOpacity onPress={handleSelect} activeOpacity={0.8} style={[styles.option, { backgroundColor: isSelected ? "#ABD1C6" : "#FFF" }]}>
+    <TouchableOpacity onPress={handleSelect} activeOpacity={0.8} style={[styles.option, { backgroundColor: isSelected ? "#ced9ff" : "#FFF" }]}>
       <Text style={{ fontWeight: "500" }} >{option}</Text>
     </TouchableOpacity>
   );
